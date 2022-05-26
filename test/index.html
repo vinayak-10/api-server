@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<form id="formUpload" action="/v1/upload" enctype="multipart/form-data" method="post">
+  <div class="form-group">
+    <input type="file" class="form-control-file" name="upload_file">
+    <input type="submit" value="Upload File" class="btn btn-default">
+
+  </div>
+
+
+<script>
+
+    document.forms['formUpload'].addEventListener('submit', async (event) => {
+      event.preventDefault();
+
+      let url =  'http://api.dwall.xyz/v1/upload';
+      let resp = await fetch ( url,
+                              {
+                                  method: "POST",
+                                  body: new FormData(document.getElementById("formUpload")),
+                              } );
+
+      let text = await resp.text();
+      alert("The server says: " + text);
+/*
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "http://api.dwall.xyz/v1/upload");
+    xhr.onload=function(event) {
+   	    alert("The server says: " + event.target.response);
+    };
+    var formData = new FormData(document.getElementById("formUpload"));
+    xhr.send(formData);
+*/
+
+  });
+
+</script>
+
+</form>
+
+<body>
+    <input type="text" id="txtId" value="+919000945575"/>
+    <input type="text" id="txtName" value=">Name..."/>
+    <input type="text" id="txtDisplayName" value="Display Name.."/>
+    <input type="text" id="txtEMail" value="Email"/>
+    <input type="text" id="txtAuthToken" value="Auth Token" />
+    <input type="text" id="txtAuthType" value="Auth Type"/>
+
+    <button id="btnCreate">Create</button>
+    <button id="btnRead">Read</button>
+    <button id="btnUpdate">Update</button>
+    <button id="btnDelete">Delete</button>
+
+    <input type="text" id="txtResponse" value="Response code..."/>
+
+
+  <script>
+
+      /// Utility Functions
+      // Fill the TxtResponse & Other texts
+      let txtId = document.getElementById("txtId");
+      let txtName = document.getElementById("txtName");
+      let txtDisplayName = document.getElementById("txtDisplayName");
+      let txtEMail = document.getElementById("txtEMail");
+      let txtAuthToken = document.getElementById("txtAuthToken");
+      let txtAuthType = document.getElementById("txtAuthType");
+      let txtResponse = document.getElementById("txtResponse");
+
+      function json2txt(jsonObj) {
+          if (jsonObj.hasOwnProperty('profile')) {
+            txtId.value = jsonObj.profile.Author;
+            txtName.value = jsonObj.profile.name;
+            txtDisplayName.value = jsonObj.profile.displayName;
+            txtEMail.value = jsonObj.profile.e_mail;
+            txtAuthToken.value = jsonObj.profile.auth_token;
+            txtAuthType.value = jsonObj.profile.auth_type;
+          }
+
+          txtResponse.value = jsonObj.Response;
+      }
+
+      function txt2json() {
+        let jsonObj = {};
+
+        if (txtId.value != "") jsonObj.Author = txtId.value;
+        if (txtName.value != "") jsonObj.name = txtName.value;
+        if (txtDisplayName.value != "") jsonObj.displayName = txtDisplayName.value;
+        if (txtEMail.value != "") jsonObj.e_mail = txtEMail.value;
+        if (txtAuthToken.value != "") jsonObj.auth_token = txtAuthToken.value;
+        if (txtAuthType.value != "") jsonObj.auth_type = txtAuthType.value;
+
+        console.log(JSON.stringify(jsonObj));
+        return jsonObj;
+      }
+
+
+        document.getElementById("btnCreate").addEventListener("click", createProfile);
+        document.getElementById("btnRead").addEventListener("click", getProfile);
+        document.getElementById("btnUpdate").addEventListener("click", updateProfile);
+        document.getElementById("btnDelete").addEventListener("click", deleteProfile);
+
+        // Create Operation
+        async function profileOp(op, profile, cb) {
+                let url =  'http://api.dwall.xyz/v1/profile/' + op;
+                let resp = await fetch ( url,
+                                        {
+					    method: "POST",
+                                            body: JSON.stringify (profile),
+                                            headers: {
+                                                       'Accept' : 'application/json; charset=UTF-8',
+                                                        'Content-type': 'application/json; charset=UTF-8'
+                                                }
+                                        } );
+		        //console.log(resp);
+            let p = await resp.json();
+
+            cb(p);
+        }
+
+        async function createProfile() {
+		          let profile = profileOp('add', txt2json(), function (p) { json2txt(p); } );
+        }
+
+        async function getProfile() {
+		          let profile = profileOp('get', txt2json(), function (p) { json2txt(p); } );
+        }
+
+        async function updateProfile() {
+		          let profile = profileOp('update', txt2json(), function (p) { json2txt(p); } );
+        }
+
+        async function deleteProfile() {
+		          let profile = profileOp('delete', txt2json(), function (p) { json2txt(p); } );
+        }
+
+  </script>
+
+</body>
+</html>
