@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+<form id="formFeedback" action="/v1/app/feedback/add" enctype="multipart/form-data" method="post">
+  <div class="form-group">
+    <label for="idTitle">Title</label>
+    <input type="textarea" class="text" id="idTitle" placeholder="Statement here..."><br>
+    <label for="idDescription">Problem Description</label><br>
+    <input type="textarea" class="text" id="idDescription" Cols="80" maxlength="2048" Rows="10" wrap="soft" placeholder="Describe the feedback here.."><br>
+    <input type="submit" value="Submit" id="idSubmit" class="btn btn-default">
+    <br><br><br>
+    <label id="idResponse">Feedback Response will come here</label><br>
+  </div>
+
+<script>
+
+
+let txtTitle = document.getElementById("idTitle");
+let txtDescription = document.getElementById("idDescription");
+let txtResponse = document.getElementById("idResponse");
+
+document.forms['formFeedback'].addEventListener('submit', (event) => {
+  event.preventDefault();
+      feedback('add', txt2json(), function (p) {
+         txtResponse.innerHTML =
+         "<br>"
+         + "Created On: " + p.p.Date + "<br>"
+         + "Response: " + p.p.Response + "<br>"
+         + "Author: " + p.p.entry.Author
+        } );
+});
+
+// Create Operation
+async function feedback(op, data, cb) {
+        let url =  'http://api.dwall.xyz/v1/app/feedback/' + op;
+        let resp = await fetch ( url,
+                                {
+      method: "POST",
+                                    body: JSON.stringify (data),
+                                    headers: {
+                                               'Accept' : 'application/json; charset=UTF-8',
+                                                'Content-type': 'application/json; charset=UTF-8'
+                                        }
+                                } );
+    //console.log(resp);
+    let p = await resp.json();
+
+    cb(p);
+}
+
+const query_string = (which) => {
+      let search = window.location.search;
+      let params = new URLSearchParams(search);
+      let id = params.get(which);
+      //console.log(id);
+      return id;
+};
+
+function txt2json() {
+  let jsonObj = {};
+
+  jsonObj.Author =  query_string('Author');
+  if (txtTitle.value != "") jsonObj.Title = txtTitle.value;
+  if (txtDescription.value != "") jsonObj.Description = txtDescription.value;
+
+  console.log(JSON.stringify(jsonObj));
+  return jsonObj;
+}
+</script>
+</form>
+
+</body>
+
+</html>

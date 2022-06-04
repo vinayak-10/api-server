@@ -122,6 +122,20 @@ var Posts = {
                     });
     },
 
+    AddFeedback: (req, res) => {
+
+      let feedback = req.body;
+
+      // Get Post of User
+      // Send it as Jason in Response
+      const postDb = require ('./database');
+
+      postDb.AddFeedback(feedback,
+                    function(retval, p) {
+                          console.log(p);
+                          res.send( { Response: retval, p } );
+                    });
+    },
 };
 
 module.exports = Posts;

@@ -79,6 +79,13 @@ var controllers = {
         PostService.DeleteUserPost(req, res);
     },
 
+    Feedback: function(req, res) {
+        const PostService = require('./service');
+
+        // Get user name from the request body
+        // Call GetUserPost from the Service
+        PostService.AddFeedback(req, res);
+    },
 };
 
 module.exports = controllers;

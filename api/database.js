@@ -138,7 +138,7 @@ var databases = {
     let sortOrder = 0;
     if (!post.hasOwnProperty('CreatedOn')) {
       criteria = { Author: post.Author };
-      sortOrder = -1;
+      sortOrder = 1;
     }
     else if (post.Direction == 'next') {
         criteria = { Author: post.Author, CreatedOn: { $gt: new Date(post.CreatedOn) } };
@@ -155,8 +155,8 @@ var databases = {
                           .collection("posts")
                           .find( criteria )
                           .sort( { CreatedOn: sortOrder } )
-                          .limit(5).toArray();
-
+                          //.limit(5).toArray();
+                          .toArray();
           if (data.length)
               callback(200, data);
           else callback(404, post);
@@ -174,11 +174,11 @@ var databases = {
 
     // post is of type {_id: "", Post: ""};
     // Add CreationTime to it
-
+    console.log("Delete Post Requested for " + post);
     try {
           // Connect to the MongoDB cluster
           await client.connect();
-          const result = await client.db().collection("posts").deleteOne( post._id );
+          const result = await client.db().collection("posts").deleteOne({ _id: ObjectId(post._id) });
           if (result != null)
             callback(200, post);
           else
@@ -186,6 +186,33 @@ var databases = {
       } catch (e) {
           console.error(e);
           callback(500, post);
+      } finally {
+          await client.close();
+      }
+  },
+
+  AddFeedback: async function(feedback, callback) {
+    const uri = "mongodb://127.0.0.1/UserProfile";
+    const client = new MongoClient(uri, { useNewUrlParser: true });
+
+    // post is of type {_id: "", Post: ""};
+    // Add CreationTime to it
+    let entry = { Author: feedback.Author, Title: feedback.Title, Description: feedback.Description, CreatedOn: new Date() };
+
+    try {
+          // Connect to the MongoDB cluster
+          await client.connect();
+          const result = await client.db().collection("feedback").insertOne( entry );
+          if (result != null)
+          {
+            feedbackResponse = "Thanks for the feedback. We value it. you will received Notification of updates"
+            callback(200, {Date: entry.CreatedOn, Response: feedbackResponse, entry});
+          }
+          else
+            callback(400, feedback);
+      } catch (e) {
+          console.error(e);
+          callback(500, feedback);
       } finally {
           await client.close();
       }

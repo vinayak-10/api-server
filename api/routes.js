@@ -21,5 +21,7 @@ module.exports = function(app) {
        .post(controller.GetPost);
    app.route('/v1/post/delete')
        .post(controller.DeletePost);
+   app.route('/v1/app/feedback/add')
+         .post(controller.Feedback);
 
 };

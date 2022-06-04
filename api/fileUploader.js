@@ -1,7 +1,17 @@
 //'use strict';
 
 const multer = require('multer');
-const upload = multer({dest:'uploads/'}).single("upload_file");
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./uploads");
+  },
+//  filename: function (req, file, cb) {
+//    cb(null, Date.now() + file.originalname);
+//  },
+});
+
+const upload = multer({ storage: storage, limits: { fileSize: 10*1024*1024 } }).single("upload_file");
 
 var uploader = {
 

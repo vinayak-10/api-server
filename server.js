@@ -21,6 +21,8 @@ app.use(cors(
 
 app.use('/test', express.static('test'));
 app.use('/images', express.static('uploads'));
+app.use('/app', express.static('app'));
+app.use('/app/images', express.static('app/images'));
 
 const routes = require('./api/routes');
 routes(app);
