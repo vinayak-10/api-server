@@ -1,20 +1,62 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+ #mainBody {
+   background-image: url('http://api.dwall.xyz/v1/app/random-image');
+   background-repeat: no-repeat;
+   background-attachment: fixed;
+   background-size: cover;
+   grid: auto-flow dense / 40px 40px 1fr;
+   justify-content: center;
+ }
+ #formDiv{
+
+
+   align-items: center;
+   flex: 1;
+   margin-left: 10%;
+   margin-top: 10%;
+   justify-content: space-around;
+ }
+#labelTitle{
+  font-size: xx-large;
+  color: white;
+}
+#labelDescription{
+  font-size: xx-large;
+  margin-top: 10px;
+  padding-top: 10%;
+}
+#idDescription{
+  margin-top: 1%;
+}
+#idTitle{
+  height: 3%;
+  width: 25%;
+}
+#idSubmit{
+  margin-left: 25%;
+  margin-top: 3%;
+}
+#idResponse{
+  color: white;
+}
+ </style>
 </head>
 
-<body>
+<body id="mainBody">
 <form id="formFeedback" action="/v1/app/feedback/add" enctype="multipart/form-data" method="post">
-  <div class="form-group">
-    <label for="idTitle">Title</label>
-    <input type="textarea" class="text" id="idTitle" placeholder="Statement here..."><br>
-    <label for="idDescription">Problem Description</label><br>
-    <input type="textarea" class="text" id="idDescription" Cols="80" maxlength="2048" Rows="10" wrap="soft" placeholder="Describe the feedback here.."><br>
+  <div class="form-group" id="formDiv">
+    <label for="idTitle" id="labelTitle"> Feedback Form </label><br>
+    <textarea class="text" id="idTitle" wrap="soft" Cols="30" rows="3" placeholder="Enter feedback summary here..."></textarea><br>
+    <textarea class="text" id="idDescription" Cols="30" maxlength="2048" rows="10"  placeholder="Describe the feedback here.."></textarea><br>
     <input type="submit" value="Submit" id="idSubmit" class="btn btn-default">
     <br><br><br>
     <label id="idResponse">Feedback Response will come here</label><br>
   </div>
+
 
 <script>
 
@@ -25,12 +67,23 @@ let txtResponse = document.getElementById("idResponse");
 
 document.forms['formFeedback'].addEventListener('submit', (event) => {
   event.preventDefault();
+    let jsonObj = txt2json();
+    if (jsonObj.Title == null || jsonObj.Description == null) {
+      alert ("Title & Description can't be null")
+      return;
+    }
       feedback('add', txt2json(), function (p) {
-         txtResponse.innerHTML =
-         "<br>"
-         + "Created On: " + p.p.Date + "<br>"
-         + "Response: " + p.p.Response + "<br>"
-         + "Author: " + p.p.entry.Author
+        if (p.Response == 200) {
+          txtResponse.innerHTML =
+          "<br>"
+          + "Created On: " + p.p.Date + "<br>"
+          + "Response: " + p.p.Response + "<br>"
+          + "Author: " + p.p.entry.Author
+
+          alert("Feedback recevied. We value it. Please click 'back' & enjoy the board");
+        } else {
+          txtResponse.innerHTML = "Failed to add feedback, Response Code: " + p.Response;
+        }
         } );
 });
 
