@@ -43,12 +43,12 @@
 </form>
 
 <body>
-    <input type="text" id="txtId" value="[+919000945575,+91900918962]"/>
-    <input type="text" id="txtName" value=">Name..."/>
-    <input type="text" id="txtDisplayName" value="Display Name.."/>
-    <input type="text" id="txtEMail" value="Email"/>
-    <input type="text" id="txtAuthToken" value="Auth Token" />
-    <input type="text" id="txtAuthType" value="Auth Type"/>
+    <input type="text" id="txtId" placeholder="+919000945575"/>
+    <input type="text" id="txtName" placeholder=">Name..."/>
+    <input type="text" id="txtDisplayName" placeholder="Display Name.."/>
+    <input type="text" id="txtEMail" placeholder="Email"/>
+    <input type="text" id="txtAuthToken" placeholder="Auth Token" />
+    <input type="text" id="txtAuthType" placeholder="Auth Type"/>
 
     <button id="btnCreate">Create</button>
     <button id="btnRead">Read</button>
@@ -67,6 +67,7 @@
     <input type="text" id="txtHierarchyValue" placeholder="Value..."/>
 
     <button id="btnGetHierarchyId">Get By Id</button>
+    <button id="btnGetHierarchyUser">Get By User</button>
     <button id="btnGetHierarchyLabel">Get By Label</button>
     <button id="btnGetHierarchyParent">Get Parent</button>
     <button id="btnGetHierarchyChild">Get Child</button>
@@ -75,6 +76,14 @@
     <button id="btnAddHierarchy">Add</button>
     <button id="btnDeleteHierarchyId">Delete By Id</button>
     <button id="btnDeleteHierarchyValue">Delete By Value</button>
+
+
+    <br><br><h4>Posts Tests</h4><br>
+
+    <input type="text" id="txtPostType" placeholder="Type Of Post..."/>
+
+    <button id="btnGetPosts">Get Posts</button>
+
   <script>
 
       /// Utility Functions
@@ -90,6 +99,7 @@
       let txtAuth = document.getElementById("txtAuth");
 
       let txtHierarchyId = document.getElementById("txtHierarchyId");
+      let txtPostType = document.getElementById("txtPostType");
 
       document.getElementById("btnCreate").addEventListener("click", createProfile);
       document.getElementById("btnRead").addEventListener("click", getProfile);
@@ -99,6 +109,7 @@
       document.getElementById("btnAuth").addEventListener("click", authenticate);
 
       document.getElementById("btnGetHierarchyId").addEventListener("click", hierarchyGetById);
+      document.getElementById("btnGetHierarchyUser").addEventListener("click", hierarchyGetByUser);
       document.getElementById("btnGetHierarchyLabel").addEventListener("click", hierarchyGetByLabel);
       document.getElementById("btnGetHierarchyParent").addEventListener("click", hierarchyGetParent);
       document.getElementById("btnGetHierarchyChild").addEventListener("click", hierarchyGetChild);
@@ -107,6 +118,8 @@
       document.getElementById("btnDeleteHierarchyValue").addEventListener("click", hierarchyDeleteByValue);
       document.getElementById("btnDeleteHierarchyId").addEventListener("click", hierarchyDeleteById);
 
+
+      document.getElementById("btnGetPosts").addEventListener("click", getPosts);
 
       function json2txt(jsonObj) {
           if (jsonObj.hasOwnProperty('profile')) {
@@ -125,9 +138,12 @@
       function txt2json() {
         let jsonObj = { Authors: []};
 
-        //if (txtId.value != "")
-        jsonObj.Authors.push("+919000945575");
-        jsonObj.Authors.push("+919009189662");
+        if (txtId.value != "") {
+           jsonObj.Author = txtId.value;
+           jsonObj._id = txtId.value;
+         }
+        // jsonObj.Authors.push("+919000945575");
+        // jsonObj.Authors.push("+919009189662");
         if (txtName.value != "") jsonObj.name = txtName.value ;
         if (txtDisplayName.value != "") jsonObj.displayName = txtDisplayName.value;
         if (txtEMail.value != "") jsonObj.e_mail = txtEMail.value;
@@ -192,7 +208,24 @@
         }
 
         async function hierarchyGetById() {
-		          let jsonObj = {_id: txtHierarchyId.value, type: 'None'};
+		          let jsonObj = {_id: [txtHierarchyId.value], type: 'None'};
+
+              let resp = await fetch ( 'http://api.dwall.xyz/v1/hierarchy/elements/get',
+                                      {
+                                          method: "POST",
+                                          body: JSON.stringify(jsonObj),
+                                          headers: {
+                                                     'Accept' : 'application/json; charset=UTF-8',
+                                                      'Content-type': 'application/json; charset=UTF-8'
+                                              }
+                                      } );
+          console.log(resp);
+          let p = await resp.json();
+          alert(JSON.stringify(p));
+        }
+
+        async function hierarchyGetByUser() {
+		          let jsonObj = {Author: txtId.value, type: 'User', filter: 'Detailed'};
 
               let resp = await fetch ( 'http://api.dwall.xyz/v1/hierarchy/elements/get',
                                       {
@@ -261,6 +294,7 @@
 
         async function hierarchyAdd() {
 		          let jsonObj = {
+                              author: txtId.value,
                               label: txtHierarchyLabel.value,
                               value: txtHierarchyValue.value,
                               parentId: txtHierarchyId.value
@@ -301,6 +335,26 @@
 		          let jsonObj = {value: txtHierarchyValue.value};
 
               let resp = await fetch ( 'http://api.dwall.xyz/v1/hierarchy/elements/delete',
+                                      {
+                                          method: "POST",
+                                          body: JSON.stringify(jsonObj),
+                                          headers: {
+                                                     'Accept' : 'application/json; charset=UTF-8',
+                                                      'Content-type': 'application/json; charset=UTF-8'
+                                              }
+                                      } );
+          console.log(resp);
+          let p = await resp.json();
+          alert(JSON.stringify(p));
+        }
+
+        async function getPosts() {
+		          let jsonObj = {
+                              Author: txtId.value,
+                              Type: txtPostType.value
+              };
+
+              let resp = await fetch ( 'http://api.dwall.xyz/v1/post/get',
                                       {
                                           method: "POST",
                                           body: JSON.stringify(jsonObj),

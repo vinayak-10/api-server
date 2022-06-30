@@ -105,8 +105,6 @@ var Posts = {
           return;
       }
 
-      profile.Permissions = ['View'];
-
     // Get Post of User
     // Send it as Jason in Response
     const profileDb = require ('./database');
@@ -178,12 +176,28 @@ var Posts = {
       // Get Post of User
       // Send it as Jason in Response
       const postDb = require ('./database');
+      if (post.hasOwnProperty('NodeId')) {
+        // Multiple Posts will be there for same ?NodeId
+        let somebignumber = 1000; // TODO: Fix it properly
+        postDb.GetPostByNodeId(post, somebignumber,
+                  function(retval, p) {
+                        res.send( { Response: retval, p } );
+                  });
 
-      postDb.GetUserPost(post,
+      } else if (post.hasOwnProperty('Type')){
+          if (post.Type === 'Subscribed') {
+            postDb.GetUserSubscribedPost(post,
+                  function(retval, p) {
+                        res.send( { Response: retval, p } );
+                  });
+          } else {
+              postDb.GetUserPost(post,
                     function(retval, p) {
                           console.log(p);
                           res.send( { Response: retval, p } );
-                    });
+                  });
+          }
+      }
     },
 
     DeleteUserPost: (req, res) => {
@@ -225,7 +239,7 @@ var Posts = {
                                   console.log(JSON.stringify(hierarchyElements));
                                   res.send( { Response: retval, hierarchyElements } );
                             });
-            } else if (filter.type === 'None'){
+            }  else if (filter.type === 'None'){
                 HierarchyDb.GetHierarchyElementById(filter._id,
                         function(retval, hierarchyElements) {
                               console.log(JSON.stringify(hierarchyElements));
@@ -235,6 +249,19 @@ var Posts = {
           } else {
             res.send( { Response: 400, Reason: "id or type null - Don't know what to Get" } );
           }
+      } else if (filter.hasOwnProperty('Author')) {
+            if (filter.hasOwnProperty('type')) {
+                if (filter.type === 'User') {
+                  let reportType = 'Summary';
+                  if (filter.hasOwnProperty('filter')) {
+                        reportType = filter.filter;
+                  }
+                  HierarchyDb.GetHierarchyElementsByUser(filter.Author, reportType,
+                    function(retval, p) {
+                        res.send( { Response: retval, p } );
+                    });
+                }
+            }
       } else if (filter.hasOwnProperty('label')) {
           HierarchyDb.GetHierarchyElementByLabel(filter.label,
                         function(retval, hierarchyElements) {
@@ -248,20 +275,22 @@ var Posts = {
 
     AddHierarchyElement: (req, res) => {
 
-      if (  !req.body.hasOwnProperty('label') ||
+      if (  !req.body.hasOwnProperty('author') ||
+            !req.body.hasOwnProperty('label') ||
             !req.body.hasOwnProperty('value')
           ) {
               res.send( { Response: 400, Reason: "Bad Values received" + req.body } );
       } else {
+          author = req.body.author;
           label = req.body.label;
           value = req.body.value;
           parentId = req.body.hasOwnProperty('parentId') ? req.body.parentId : '';
 
-          // {label, value, parentId} --> Mandatory fields
+          // {author, label, value, parentId} --> Mandatory fields
 
           const HierarchyDb = require ('./database');
 
-          HierarchyDb.AddHierarchyElement(label, value, parentId,
+          HierarchyDb.AddHierarchyElement(author, label, value, parentId,
                         function(retval, e) {
                               res.send( { Response: retval, e } );
                         });

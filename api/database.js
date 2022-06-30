@@ -77,9 +77,9 @@ var databases = {
 
           console.log ("Authors: " + authors.length)
           if (authors.length == 0) {
-            criteria = { Permissions: { $in: permissions} };
+            criteria = { permissions: { $in: permissions} };
           } else {
-            criteria = { _id: { $in: authors}, Permissions: { $in: permissions} };
+            criteria = { _id: { $in: authors} }; //, permissions: { $in: permissions} };
           }
 
           const profile = await client.db().
@@ -123,10 +123,10 @@ var databases = {
                 if (isDetailed) {
                   jsonA.push({Author: item._id, name: item.name, displayName: item.displayName,
                               e_mail: item.e_mail, auth_token: item.auth_token,  auth_type: item.auth_type,
-                              Permissions: item.Permissions,
+                              Permissions: item.permissions,
                               postCount: count, recentPost: recent });
                 } else {
-                  jsonA.push({Author: item._id, name: item.name, Permissions: item.Permissions,
+                  jsonA.push({Author: item._id, name: item.name, Permissions: item.permissions,
                                 postCount: count, recentPost: recent });
                 }
             }
@@ -152,6 +152,13 @@ var databases = {
 //    const uri = "mongodb://127.0.0.1:27017/?directConnection=true&serverSelectionTimeoutMS=2000&retryWrites=true&w=majority";
     const uri = "mongodb://127.0.0.1/UserProfile";
     const client = new MongoClient(uri, { useNewUrlParser: true });
+
+    profile.permissions = {
+        posts: {
+          w: [],
+          r: null
+        }
+    };
 
     try {
           // Connect to the MongoDB cluster
@@ -226,7 +233,9 @@ var databases = {
 
     // post is of type {_id: "", Post: ""};
     // Add CreationTime to it
-    let dbPost = { _id: null, Author: post.Author, Post: post.Post, CreatedOn: new Date() };
+    const dbNodeId = new ObjectID(post.NodeId);
+
+    let dbPost = { _id: null, NodeId: dbNodeId ,Author: post.Author, Post: post.Post, CreatedOn: new Date() };
 
     try {
           // Connect to the MongoDB cluster
@@ -284,6 +293,160 @@ var databases = {
       }
   },
 
+  GetPostByNodeId: async function(post, limit, callback) {
+    const uri = "mongodb://127.0.0.1/UserProfile";
+    const client = new MongoClient(uri, { useNewUrlParser: true });
+
+    // post is of type {Author: "", Post: ""};
+    // Add CreationTime to it
+    let criteria = {};
+    let sortOrder = 0;
+
+    const dbNodeId = new ObjectID(post.NodeId);
+
+    if (!post.hasOwnProperty('CreatedOn')) {
+      criteria = { NodeId: dbNodeId };
+      sortOrder = 1;
+    }
+    else if (post.Direction == 'next') {
+        criteria = { NodeId: post.NodeId, CreatedOn: { $gt: new Date(post.CreatedOn) } };
+        sortOrder = 1;
+    } else {
+      criteria = { NodeId: post.NodeId, CreatedOn: { $lt: new Date(post.CreatedOn) } };
+      sortOrder = -1;
+    }
+
+    try {
+          // Connect to the MongoDB cluster
+          await client.connect();
+          const data = await client.db()
+                          .collection("posts")
+                          .find( criteria )
+                          .sort( { CreatedOn: sortOrder } )
+                          .limit(limit).toArray();
+                          //.toArray();
+          if (data.length) {
+              callback(200, data);
+            }
+          else callback(404, post);
+      } catch (e) {
+          console.error(e);
+          callback(500, post);
+      } finally {
+          await client.close();
+      }
+  },
+
+  GetUserPermissions: async function(author, callback) {
+    const uri = "mongodb://127.0.0.1/UserProfile";
+    const client = new MongoClient(uri, { useNewUrlParser: true });
+
+    const criteria = {_id: author};
+    const options = {
+      // Include only the `title` and `imdb` fields in the returned document
+      projection: { _id: 0, permissions: 1 },
+    };
+
+    try {
+          // Connect to the MongoDB cluster
+          await client.connect();
+          const data = await client.db()
+                          .collection("profile")
+                          .findOne( criteria );
+
+          if (data != null) {
+              callback(200, data.permissions.posts);
+            }
+          else callback(404, author);
+      } catch (e) {
+          console.error(e);
+          callback(500, author);
+      } finally {
+          await client.close();
+      }
+  },
+
+
+  GetUserSubscribedPost: async function(post, callback) {
+    const uri = "mongodb://127.0.0.1/UserProfile";
+    const client = new MongoClient(uri, { useNewUrlParser: true });
+
+    // post is of type {Author: "", Post: ""};
+    // Add CreationTime to it
+    let criteria = {};
+    let sortOrder = 0;
+
+    let wNodeIds = [''];
+    let rNodeIds = [''];
+    // Get the list of Keys ( NodeIds ) that this user Serves
+    await databases.GetUserPermissions(post.Author, function(retval, p) {
+          if (retval == 200) {
+              // Read Write Permission Keys & Read Permission Keys
+              wNodeIds = p.w;
+              rNodeIds = p.r;
+          }
+    });
+    // Put them in Array
+    let posts = { w: [],
+                  r: []
+                };
+
+    if (wNodeIds != null && wNodeIds.length != 0) {
+        let nodes = [];
+        await databases.GetHierarchyElementById(wNodeIds, function(retval, p) {
+                      if (retval == 200) {
+                            console.log("GetUserSubscribedPost: p: " + p);
+                            for (const doc of p) {
+                              nodes.push({ NodeId: doc._id, label: doc.label, value: doc.value, parent: doc.parent});
+                            }
+                      }
+              });
+
+        console.log("GetUserSubscribedPost: w nodes: " + JSON.stringify(nodes));
+
+        for (const doc of nodes) {
+
+            await databases.GetPostByNodeId( { NodeId: doc.NodeId}, 1,  function(retval, p) {
+                    if (retval == 200) {
+                        posts.w.push( { Node: doc, Posts: p } );
+                    }
+              });
+        }
+    }
+
+    if (rNodeIds != null && rNodeIds.length != 0) {
+        let nodes = [];
+        await databases.GetHierarchyElementById(rNodeIds, function(retval, p) {
+                      if (retval == 200) {
+                            console.log("GetUserSubscribedPost: p: " + p);
+                            for (const doc of p) {
+                              nodes.push({ NodeId: doc._id, label: doc.label, value: doc.value, parent: doc.parent});
+                            }
+                      }
+              });
+
+        console.log("GetUserSubscribedPost: r nodes: " + JSON.stringify(nodes));
+
+        for (const doc of nodes) {
+
+            await databases.GetPostByNodeId( { NodeId: doc.NodeId}, 1,  function(retval, p) {
+                    if (retval == 200) {
+                        posts.r.push( { Node: doc, Posts: p } );
+                    }
+              });
+        }
+    }
+
+      const postsCount = posts.w.length + posts.r.length;
+
+      if (postsCount) {
+        callback(200, posts);
+      } else {
+        callback(404, post.author);
+      }
+  },
+
+
   DeleteUserPost: async function(post, callback) {
     const uri = "mongodb://127.0.0.1/UserProfile";
     const client = new MongoClient(uri, { useNewUrlParser: true });
@@ -310,14 +473,17 @@ var databases = {
       }
   },
 
-  GetHierarchyElementById: async function(id, callback) {
+  GetHierarchyElementById: async function(ids, callback) {
     const uri = "mongodb://127.0.0.1/UserProfile";
     const client = new MongoClient(uri, { useNewUrlParser: true });
 
-    let dbid = new ObjectID(id);
-    let criteria = {_id: dbid};
+    let dbids = [];
 
-    console.log("GetHierarchyElementById: " + JSON.stringify(criteria));
+    for (const doc of ids) {
+        dbids.push(new ObjectID(doc));
+     }
+     let criteria = {_id: {$in : dbids}};
+
     try {
           // Connect to the MongoDB cluster
           await client.connect();
@@ -333,6 +499,54 @@ var databases = {
           callback(500, criteria);
       } finally {
           await client.close();
+      }
+  },
+
+    GetHierarchyElementsByUser: async function(author, reportType, callback) {
+      const uri = "mongodb://127.0.0.1/UserProfile";
+      const client = new MongoClient(uri, { useNewUrlParser: true });
+
+      let wNodeIds = [];
+      let rNodeIds = [];
+      // Get the list of Keys ( NodeIds ) that this user Serves
+      await databases.GetUserPermissions(author, function(retval, p) {
+            if (retval == 200) {
+                // Read Write Permission Keys & Read Permission Keys
+                wNodeIds = p.w;
+                rNodeIds = p.r;
+            }
+      });
+      // Put them in Array
+
+      let hierarchyElements = {w: [], r: []};
+
+      if ( wNodeIds && wNodeIds.length ) {
+          await databases.GetHierarchyElementById( wNodeIds, function(retval, p) {
+                      if (retval == 200) {
+                          hierarchyElements.w = p;
+                      }
+                });
+        }
+
+      if ( rNodeIds && rNodeIds.length ) {
+         await databases.GetHierarchyElementById( wNodeIds, function(retval, p) {
+                       if (retval == 200) {
+                           hierarchyElements.r = p;
+                       }
+                 });
+      }
+
+      let hierarchyElementsCount = hierarchyElements.w.length + hierarchyElements.r.length;
+
+      // If there are hierarchyElements;
+      // Add Most Recent Post to it if reportType = detailed
+      // Otherwise; pass the message as is to the client
+
+      if (hierarchyElementsCount) {
+          callback(200, hierarchyElements);
+        }
+      else {
+        callback(404, {Author: author});
       }
   },
 
@@ -385,6 +599,16 @@ var databases = {
                                         depthField: "level",
                                         as: "Childs"
                                         }
+                                      },
+                                      {
+                                        $project:
+                                          {
+                                            _id:1,
+                                            parent:1,
+                                            label:1,
+                                            value:1,
+                                            children: "$Childs"
+                                          }
                                       }
                                     ] ).toArray();
 
@@ -396,8 +620,7 @@ var databases = {
           let len = await result.length;
 
           if (len) {
-            let childs = result[0].Childs;
-            callback(200, childs);
+            callback(200, result);
           }
           else callback(404, {parentId: parentId});
       } catch (e) {
@@ -464,7 +687,7 @@ var databases = {
       }
   },
 
-  AddHierarchyElement: async function(label, value, parentId, callback) {
+  AddHierarchyElement: async function(author, label, value, parentId, callback) {
     const uri = "mongodb://127.0.0.1/UserProfile";
     const client = new MongoClient(uri, { useNewUrlParser: true });
 
@@ -474,29 +697,82 @@ var databases = {
 
     if (parentId != '') parentDbId = new ObjectID(parentId);
 
-    let dbPost = {
+    let hdbPost = {
                     _id: null,
                     label: label,
                     value: value,
-                    parent: parentDbId
+                    parent: parentDbId,
+                    permissions: {
+                        posts: {
+                                w: [author], // Author is Creator and Writer
+                                r: null      // World Readable. if r=[]; means its private; Not readable to anyone
+                              }
+                      }
                 };
 
+    // Add Profile for the Author if its not already present
+    // Update its Permissions with the hierarhy key as "cw"
+    // Connect to the MongoDB cluster
+    await client.connect();
+
+    // Step 1: Start a Client Session
+   const session = client.startSession();
+
     try {
-          // Connect to the MongoDB cluster
-          await client.connect();
-          const result = await client.db().collection("hierarchyElements").insertOne( dbPost );
-          if (result != null) {
-            callback(200, {_id: result._id});
-          }
-          else {
-            callback(400, dbPost);
-          }
-      } catch (e) {
-          console.error(e);
-          callback(500, dbPost);
-      } finally {
-          await client.close();
-      }
+           // Step 2: Optional. Define options to use for the transaction
+           const transactionOptions = {
+             readPreference: 'primary',
+             readConcern: { level: 'local' },
+             writeConcern: { w: 'majority' }
+           };
+
+           await session.withTransaction(async () =>
+            {
+
+              const i1 = await client.db().collection("hierarchyElements").insertOne( hdbPost );
+              let hierarchyId =  i1.insertedId;
+              console.log("Added hid: " + hierarchyId );
+
+              const filter = { _id: author };
+
+              const i2 = await client.db().collection("profile").find( filter ).toArray();
+              if (i2)
+                console.log("Got id: " + i2.length ? i2[0] : "Not Found" );
+              else console.log("Didn't got user: " + author);
+
+              if (i2.length) {
+                // found existing Profile
+                // update the Permissions there.
+                i2[0].permissions.posts.w.push(hierarchyId);
+
+                const updateDocument = { $set: i2[0] };
+                const result = await client.db().collection("profile").updateOne(filter, updateDocument );
+
+              } else {
+                let profile = {
+                  _id: author,
+                  permissions: {
+                    posts: {
+                         w: [ hierarchyId ],
+                         r: null
+                    }
+                  }
+                };
+                const i3 = await client.db().collection("profile").insertOne( profile );
+              }
+
+              // If control is here; it means all db operations are successful
+              callback(200, { _id: hierarchyId });
+
+            } , transactionOptions );
+
+        } catch (e) {
+             console.error(e);
+             callback(500, hdbPost);
+        } finally {
+            await session.endSession();
+             await client.close();
+        }
   },
 
   DeleteHierarchyElementById: async function(id, callback) {
